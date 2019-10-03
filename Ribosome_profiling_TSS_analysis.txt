@@ -1,0 +1,16 @@
+Ribosome_profiling_TSS_analysis
+
+####Add line numbers to wig file to show coordinate position
+awk '{print NR "\t" $s}' no_challenge.wig > no_challenge_edit.wig
+
+####Alternative approach: remove lines that have no density to speed up the python script. 
+to insert tab delimiter below press ctrl + v for a very short sec then press tab, then: 
+sed '/       0.0/d' /Users/DRG/Downloads/2019-smORF-master/all_TSS/p_site_adjusted/no_challenge/control_minus_edit.v2.wig
+
+
+####Offset 15nt for p-site adjustment of wig file
+##plus file
+awk '{$1-=15}1' /Users/DRG/Downloads/2019-smORF-master/all_TSS/p_site_adjusted/no_challenge/control_plus_edit.v2.wig > /Users/DRG/Downloads/2019-smORF-master/all_TSS/p_site_adjusted/no_challenge/control_plus_psite_adjusted.v2.wig
+
+##minus file
+awk '{$1+=15}1' /Users/DRG/Downloads/2019-smORF-master/all_TSS/p_site_adjusted/no_challenge/control_minus_edit.v2.wig  > /Users/DRG/Downloads/2019-smORF-master/all_TSS/p_site_adjusted/no_challenge/control_minus_psite_adjusted.v2.wig

@@ -1,0 +1,150 @@
+############Ribosome_profiling_analysis
+
+#####Trim adapters#####
+trim_galore --path_to_cutadapt ~/.local/bin/cutadapt -a CTGTAGGCACCATCAATAGATCGGAAGAGCACACGTCTGAACTCCAGTCA --length 10 Desktop/ribosome_profiling_first_library/HLMV2BCX2_2_GGCAAC_1.fastq.gz -o Desktop/ribosome_profiling_first_library/HLMV2BCX2_2_GGCAAC_1.v2
+
+#####Build indexes#####
+adapter sequence and rRNA:
+bowtie-build HFX_all_rRNA.fa HFX_ribo_filter_index_bowtie
+
+Hfx genome:
+bowtie-build GCF_000025685.1_ASM2568v1_genomic.fna HFX_ribo_profile_index
+
+#####Filter adapter sequence and rRNA#####
+bowtie -v 2 -y -m 1 -a --best --strata -S -p 2 --un HLMV2BCX2_2_GGCAAC_1_trimmed_rRNA-adapter_filtered.fq Hfx_ribo_filter_index_bowtie/HFX_ribo_filter_index_bowtie HLMV2BCX2_2_GGCAAC_1_trimmed.fq HLMV2BCX2_2_GGCAAC_1_trimmed_rRNA-adapter.sam
+
+Output:
+# reads processed: 2797842
+# reads with at least one reported alignment: 851477 (30.43%)
+# reads that failed to align: 1918633 (68.58%)
+# reads with alignments suppressed due to -m: 27732 (0.99%)
+Reported 851477 alignments to 1 output stream(s)
+
+1946365 reads left
+
+
+#####Align filtered reads to genome#####
+bowtie -v 2 -y -m 1 -a --best --strata -S -p 2 --un HLMV2BCX2_2_GGCAAC_1_trimmed_unaligned_Hfx_genome.fq HFX_ribo_profile_index/HFX_ribo_profile_index HLMV2BCX2_2_GGCAAC_1_trimmed_rRNA-adapter_filtered.fq HLMV2BCX2_2_GGCAAC_1_trimmed_ribo-profile.sam
+
+# reads processed: 1946365
+# reads with at least one reported alignment: 1458389 (74.93%)
+# reads that failed to align: 92735 (4.76%)
+# reads with alignments suppressed due to -m: 395241 (20.31%)
+Reported 1458389 alignments to 1 output stream(s)
+
+"-m <int>
+Suppress all alignments for a particular read or pair if more than <int> reportable alignments exist for it. ""
+
+
+########Convert sam to big wig
+
+samtools view -S -b HLMV2BCX2_2_GGCAAC_1_trimmed_ribo-profile.sam -o HLMV2BCX2_2_GGCAAC_1_trimmed_ribo-profile.bam 
+
+samtools sort HLMV2BCX2_2_GGCAAC_1_trimmed_ribo-profile.bam -o HLMV2BCX2_2_GGCAAC_1_trimmed_ribo-profile.sorted.bam
+
+
+samtools view -F 0x10  -h input.bam | samtools view -bS - > forward.bam
+
+samtools view -f 0x10  -h input.bam | samtools view -bS - > reverse.bam
+
+bam2wig.py -i Desktop/ribosome_profiling_first_library/HLMV2BCX2_2_GGCAAC_1_trimmed_ribo-profile.sorted.bam -s Desktop/ribosome_profiling_first_library/Hfx_chrom.sizes -o Desktop/ribosome_profiling_first_library/HLMV2BCX2_2_GGCAAC_1_trimmed_ribo-profile
+
+wigToBigWig -clip /Volumes/Diego_2TB/ribosome_profiling_final_libs/libraries/H98_WT_oxi/reads/density/density/wigfiles/DG1_minus.wig  /Users/DRG/Desktop/ribosome_profiling_first_library/Hfx_chrom.sizes /Volumes/Diego_2TB/ribosome_profiling_final_libs/libraries/H98_WT_oxi/reads/density/density/wigfiles/H98_WT_oxi_minus.bw
+
+
+
+###########filtering footprint sizes by lenght###########
+Filtering ribosome profiling sorted bam alignments to footprint lengths
+
+###35 nt and above
+samtools view -h file.bam | awk 'length($10) > 34 || $1 ~ /^@/' | samtools view -bS - > 35nt+_end_file.bam
+
+###24-34 nt
+samtools view -h file.bam | awk 'length($10) > 23 && length($10) < 35 || $1 ~ /^@/' | samtools view -bS - > 24_34nt_end_file.bam
+
+###less than 24nt
+samtools view -h file.bam | awk 'length($10) < 24 || $1 ~ /^@/' | samtools view -bS - > sub24nt_end_file.bam
+
+
+###########extract fasta sequence from length filtered footprint sizes ###########
+samtools bam2fq /Users/DRG/Desktop/ribosome_profiling_first_library/2nd_libraries/leucine_analysis/reads_ypc_ctrl/density/filtering_bowtie/alignments/chr/18-18nt_YPC_ctrl.bam | seqtk seq -A - > /Users/DRG/Desktop/ribosome_profiling_first_library/2nd_libraries/leucine_analysis/reads_ypc_ctrl/density/filtering_bowtie/alignments/chr/18-18nt_YPC_ctrl.fa
+
+####convert multi-line fasta to single line fasta
+awk '!/^>/ { printf "%s", $0; n = "\n" } /^>/ { print n $0; n = "" } END { printf "%s", n }' fasta.file > fasta.file_new
+
+###########Extract the first x nucleotides of length filtered footprints to use for weblogo ###########
+First 16nt:
+awk '{if (/^>/) print $0; else print(substr($1,1,16)) }' /Users/DRG/Desktop/ribosome_profiling_first_library/2nd_libraries/leucine_analysis/reads_leucine_starve/density/filtering_bowtie/alignments/chr/18-18nt_leucine_starve.fa > /Users/DRG/Desktop/ribosome_profiling_first_library/2nd_libraries/leucine_analysis/reads_leucine_starve/density/filtering_bowtie/alignments/chr/18-18nt_leucine_starve_first_16nt.fa
+
+OR
+
+###########Extract the last 10 nucleotides of length filtered footprints to use for weblogo ###########
+awk '{ if (/^>/) print $0; else print substr( $0, length($0) - 9, length($0) ) }' /Users/DRG/Desktop/Hfx_transcriptome_reannotation/Hfx_UTR_data/5prime_utr_10nt\>_transcriptome_only_single-line.v2.fa > /Users/DRG/Desktop/Hfx_transcriptome_reannotation/Hfx_UTR_data/5prime_utr_10nt\>_transcriptome_only_single-line_last_10nt.v2.fa
+
+###########Make weblogo of footprints ###########
+weblogo -c classic < /Users/DRG/Desktop/ribosome_profiling_first_library/2nd_libraries/leucine_analysis/reads_leucine_starve/density/filtering_bowtie/alignments/chr/28-30nt_leucine_starve_first28nt.fa > /Users/DRG/Desktop/ribosome_profiling_first_library/2nd_libraries/leucine_analysis/reads_leucine_starve/density/filtering_bowtie/alignments/chr/28-30nt_leucine_starve_first28nt.eps
+
+###########get footprints that start with ATG###########
+grep '^\A\T\G' /Users/DRG/Desktop/ribosome_profiling_first_library/2nd_libraries/leucine_analysis/reads_ypc_ctrl/density/filtering_bowtie/alignments/chr/28-30nt_YPC_ctrl_first28nt.fa > /Users/DRG/Desktop/ribosome_profiling_first_library/2nd_libraries/leucine_analysis/reads_ypc_ctrl/density/filtering_bowtie/alignments/chr/28-30nt_YPC_ctrl_first28nt_ATG_start.fa
+
+###########remove fasta headers###########
+grep -v ">" /Users/DRG/Desktop/ribosome_profiling_first_library/2nd_libraries/leucine_analysis/reads_leucine_starve/density/filtering_bowtie/alignments/chr/28-30nt_leucine_starve.fa > /Users/DRG/Desktop/ribosome_profiling_first_library/2nd_libraries/leucine_analysis/reads_leucine_starve/density/filtering_bowtie/alignments/chr/28-30nt_leucine_starve_noheader.fa
+
+###########get footprints that do not start with a start codon##########
+python Desktop/return_different_lines_file2_from_word_in_file1.v2.py /Users/DRG/Desktop/ribosome_profiling_first_library/2nd_libraries/leucine_analysis/reads_leucine_starve/density/filtering_bowtie/alignments/chr/28-30nt_leucine_starve_all_total_start.fa /Users/DRG/Desktop/ribosome_profiling_first_library/2nd_libraries/leucine_analysis/reads_leucine_starve/density/filtering_bowtie/alignments/chr/28-30nt_leucine_starve_noheader.fa > /Users/DRG/Desktop/ribosome_profiling_first_library/2nd_libraries/leucine_analysis/reads_leucine_starve/density/filtering_bowtie/alignments/chr/28-30nt_leucine_starve_non-start_reads.fa
+
+###########convert back to fasta by adding ">" before each line and a unique identifier##########
+awk '{print ">" NR; print $0}' /Users/DRG/Desktop/ribosome_profiling_first_library/2nd_libraries/leucine_analysis/reads_leucine_starve/density/filtering_bowtie/alignments/chr/28-30nt_leucine_starve_non-start_reads.fa > /Users/DRG/Desktop/ribosome_profiling_first_library/2nd_libraries/leucine_analysis/reads_leucine_starve/density/filtering_bowtie/alignments/chr/28-30nt_leucine_starve_non-start_reads_headers.v1.fa
+
+
+###########get read length counts from sam alignment file##############
+samtools view /Volumes/Diego_2TB/ribosome_profiling_final_libs/libraries/HHT/reads/density/filtering_bowtie/alignments/chr/DG1_match.sam | cut -f 10 | perl -ne 'chomp;print length($_) . "\n"' | sort | uniq -c > /Volumes/Diego_2TB/ribosome_profiling_final_libs/alignments/HHT_main-chrom_alignment_read_lengths_counts.txt
+
+
+
+
+
+Ribosome profiling stats after rRNA filtering & linker:
+
+
+
+Ribosome profiling stats after tRNA + other filtering:
+
+Hfx AB no challenge (HLMV2BCX2_2_GGCAAC)
+# reads processed: 2797842
+# reads with at least one reported alignment: 901946 (32.24%)
+# reads that failed to align: 1839564 (65.75%)
+# reads with alignments suppressed due to -m: 56332 (2.01%)
+Reported 901946 alignments to 1 output stream(s)
+
+
+Hfx WT no challenge (HLMNTBCX2_1_AGGTTT)
+# reads processed: 23653813
+# reads with at least one reported alignment: 11972966 (50.62%)
+# reads that failed to align: 10785989 (45.60%)
+# reads with alignments suppressed due to -m: 894858 (3.78%)
+Reported 11972966 alignments to 1 output stream(s)
+
+
+Hfx WT oxidative stress (HLMNTBCX2_1_CCTGAG)
+# reads processed: 20673566
+# reads with at least one reported alignment: 11401636 (55.15%)
+# reads that failed to align: 8579278 (41.50%)
+# reads with alignments suppressed due to -m: 692652 (3.35%)
+Reported 11401636 alignments to 1 output stream(s)
+
+
+Hfx AB oxidative stress (HLMNTBCX2_1_GAACCC)
+# reads processed: 24733034
+# reads with at least one reported alignment: 13534053 (54.72%)
+# reads that failed to align: 10534582 (42.59%)
+# reads with alignments suppressed due to -m: 664399 (2.69%)
+Reported 13534053 alignments to 1 output stream(s)
+
+
+Hfx EF oxidative stress (HLMNTBCX2_1_TTCAGA)
+# reads processed: 20077278
+# reads with at least one reported alignment: 10876848 (54.17%)
+# reads that failed to align: 8571976 (42.69%)
+# reads with alignments suppressed due to -m: 628454 (3.13%)
+Reported 10876848 alignments to 1 output stream(s)
