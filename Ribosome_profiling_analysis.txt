@@ -96,6 +96,3 @@ python Desktop/return_different_lines_file2_from_word_in_file1.v2.py /Users/DRG/
 ###########convert back to fasta by adding ">" before each line and a unique identifier##########
 awk '{print ">" NR; print $0}' /Users/DRG/Desktop/ribosome_profiling_first_library/2nd_libraries/leucine_analysis/reads_leucine_starve/density/filtering_bowtie/alignments/chr/28-30nt_leucine_starve_non-start_reads.fa > /Users/DRG/Desktop/ribosome_profiling_first_library/2nd_libraries/leucine_analysis/reads_leucine_starve/density/filtering_bowtie/alignments/chr/28-30nt_leucine_starve_non-start_reads_headers.v1.fa
 
-
-###########get read length counts from sam alignment file##############
-samtools view /Volumes/Diego_2TB/ribosome_profiling_final_libs/libraries/HHT/reads/density/filtering_bowtie/alignments/chr/DG1_match.sam | cut -f 10 | perl -ne 'chomp;print length($_) . "\n"' | sort | uniq -c > /Volumes/Diego_2TB/ribosome_profiling_final_libs/alignments/HHT_main-chrom_alignment_read_lengths_counts.txt
